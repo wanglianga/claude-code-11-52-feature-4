@@ -10,6 +10,7 @@ import ImpactPage from './pages/Impact'
 import IncidentsPage from './pages/Incidents'
 import SimulatorPage from './pages/Simulator'
 import AcceptancePage from './pages/Acceptance'
+import DemandPage from './pages/Demand'
 
 type User = { display_name: string; role: string }
 
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/simulator" element={<SimulatorPage />} />
             <Route path="/acceptance" element={<AcceptancePage />} />
+            <Route path="/demand" element={<DemandPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>

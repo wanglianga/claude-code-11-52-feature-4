@@ -48,6 +48,9 @@ W1 = datetime(2026, 11, 10, 12, 0)
 
 def reset_demo_state(db: Session) -> None:
     """Return the demo to a clean reproducible baseline before replaying acceptance."""
+    from .demand_acceptance import reset_demand
+
+    reset_demand(db)
     for model in (
         ConsumerImpact,
         RecoveryCheck,
@@ -66,6 +69,10 @@ def reset_demo_state(db: Session) -> None:
     db.flush()
 
     for meter in db.execute(select(Meter)).scalars():
+        # Peak-demand meters are an independent instrument role with their own
+        # evidence base; they deliberately do not join the SLO sampling commitments.
+        if meter.source.code == "demand":
+            continue
         db.add(
             MeterCommitment(
                 meter_id=meter.id,

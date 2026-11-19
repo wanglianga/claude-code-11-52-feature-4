@@ -388,3 +388,106 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(64))
     target: Mapped[str] = mapped_column(String(128), default="")
     detail: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+
+
+# ---------------------------------------------------------------- peak demand
+
+
+class ContractCapacity(Base):
+    """合同容量：按楼栋/字段登记，报告只与它比较，不据此执行限电或计费。"""
+
+    __tablename__ = "contract_capacities"
+    __table_args__ = (Index("ix_contract_building", "building_id", "product_field"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    building_id: Mapped[int] = mapped_column(ForeignKey("buildings.id"))
+    product_field: Mapped[str] = mapped_column(String(32), default="electricity")
+    capacity_kw: Mapped[float] = mapped_column(Float)
+    valid_from: Mapped[datetime] = mapped_column(DateTime)
+    valid_to: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    source: Mapped[str] = mapped_column(String(128), default="合同容量条款")
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    building: Mapped[Building] = relationship()
+
+
+class DemandMeterConfig(Base):
+    """参与峰值需量计算的表计角色：计量模式、单位口径与物理上界来源。"""
+
+    __tablename__ = "demand_meter_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    meter_id: Mapped[int] = mapped_column(ForeignKey("meters.id"), unique=True)
+    mode: Mapped[str] = mapped_column(String(32))  # energy_interval | register | power
+    grid_stream: Mapped[str] = mapped_column(String(24), default="settlement")
+    integration_stream: Mapped[str] = mapped_column(String(24), default="settlement")
+    rated_kw: Mapped[float | None] = mapped_column(Float, nullable=True)
+    neighbor_step_kw: Mapped[float | None] = mapped_column(Float, nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    meter: Mapped[Meter] = relationship()
+
+
+class DemandReading(Base):
+    """带采样时间的高频/15 分钟原始读数。
+
+    measured_from/measured_to 是读数代表的采样时段（不是接收时间）；received_at 只
+    用于数据截止点判断。register 模式 measured_from == measured_to == 表码抄见时刻。
+    """
+
+    __tablename__ = "demand_readings"
+    __table_args__ = (
+        Index("ix_demand_reading_meter", "meter_id", "measured_to"),
+        Index("ix_demand_reading_received", "meter_id", "received_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    meter_id: Mapped[int] = mapped_column(ForeignKey("meters.id"))
+    kind: Mapped[str] = mapped_column(String(16))  # energy | register | power
+    stream: Mapped[str] = mapped_column(String(24), default="settlement")
+    measured_from: Mapped[datetime] = mapped_column(DateTime)
+    measured_to: Mapped[datetime] = mapped_column(DateTime)
+    value: Mapped[float] = mapped_column(Float)
+    received_at: Mapped[datetime] = mapped_column(DateTime)
+    source: Mapped[str] = mapped_column(String(32), default="meter")
+    note: Mapped[str] = mapped_column(Text, default="")
+
+    meter: Mapped[Meter] = relationship()
+
+
+class DemandReport(Base):
+    """按楼栋发布的峰值需量证据报告：一个数据截止点对应一个不可变版本。"""
+
+    __tablename__ = "demand_reports"
+    __table_args__ = (
+        UniqueConstraint(
+            "building_code", "product_field", "method", "period_start", "period_end",
+            "data_cutoff", "revision", name="uq_demand_report_key",
+        ),
+        Index("ix_demand_report_lookup", "building_code", "method", "period_start"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    building_code: Mapped[str] = mapped_column(String(32))
+    building_name: Mapped[str] = mapped_column(String(128), default="")
+    product_field: Mapped[str] = mapped_column(String(32), default="electricity")
+    method: Mapped[str] = mapped_column(String(24))  # grid | integration
+    period_start: Mapped[datetime] = mapped_column(DateTime)
+    period_end: Mapped[datetime] = mapped_column(DateTime)
+    data_cutoff: Mapped[datetime] = mapped_column(DateTime)
+    revision: Mapped[int] = mapped_column(Integer, default=0)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    recompute_count: Mapped[int] = mapped_column(Integer, default=1)
+    conclusion: Mapped[str] = mapped_column(Text, default="")
+    contract_status: Mapped[str] = mapped_column(String(24))
+    unknown_risk: Mapped[str] = mapped_column(String(16))
+    confirmed_peak_kw: Mapped[float | None] = mapped_column(Float, nullable=True)
+    confirmed_peak_slot: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    contract_kw: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lower_kw: Mapped[float] = mapped_column(Float, default=0.0)
+    upper_kw: Mapped[float | None] = mapped_column(Float, nullable=True)
+    counts: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    computed_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

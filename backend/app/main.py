@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db
 from .routers.api import router
+from .routers.demand_api import router as demand_router
 
 
 @asynccontextmanager
@@ -28,7 +29,10 @@ app = FastAPI(
         "- 维护只扣除规则允许的时段；事后补录维护不撤销已发生的违约事实（BreachFact 为追加式）。\n"
         "- 累计表回零、换表倍率无法衔接、跨缺口表码差单列核验缺口，负差不得计为节能。\n"
         "- 同一产品版本上的不同消费者按各自字段/楼栋/时段与容忍范围分别判定，影响区间合并去重。\n"
-        "- 事故关闭必须对应已完成的恢复评估；关闭前复查发现新缺口会重新打开事故；关闭后同因再发形成新区间并关联既往事故。"
+        "- 事故关闭必须对应已完成的恢复评估；关闭前复查发现新缺口会重新打开事故；关闭后同因再发形成新区间并关联既往事故。\n"
+        "- 峰值需量产品只给可证实/未知范围：只有完整 15 分钟格能确认平均值，部分覆盖只作保守下界；"
+        "最高已确认格低于合同但存在缺口格时只说“尚未证实超限”；报告与读数规范化绑定同一数据截止点，"
+        "迟到读数生成新版本并标出峰值结论变化。不执行限电或计费。"
     ),
     lifespan=lifespan,
     openapi_tags=[
@@ -40,6 +44,7 @@ app = FastAPI(
         {"name": "incidents", "description": "事故指挥：区间、证据、恢复评估、关闭与重开"},
         {"name": "simulator", "description": "模拟表计到达、时钟推进与审计时间线"},
         {"name": "acceptance", "description": "验收场景重放与报告"},
+        {"name": "demand", "description": "峰值需量证据、风险区间与合同容量复核"},
     ],
 )
 
@@ -52,6 +57,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(demand_router)
 
 
 @app.get("/healthz")

@@ -58,6 +58,11 @@ const pages = [
   ['incidents', (await import('../src/pages/Incidents')).default, ['事故指挥', '事故列表', '处置动作', 'INC-']],
   ['simulator', (await import('../src/pages/Simulator')).default, ['模拟与验收', '审计时间线', '样本到达']],
   ['acceptance', (await import('../src/pages/Acceptance')).default, ['验收报告', '重放验收场景']],
+  [
+    'demand',
+    (await import('../src/pages/Demand')).default,
+    ['峰值需量证据', '楼栋合同状态', '尚未证实超限', '已证实超限', '风险区间', 'M-DMD-'],
+  ],
 ] as const
 
 const failures: string[] = []

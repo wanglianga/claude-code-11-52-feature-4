@@ -9,6 +9,7 @@ const NAV = [
     group: '数据产品',
     items: [
       { to: '/products', label: '产品运行', ico: '▤' },
+      { to: '/demand', label: '峰值需量证据', ico: '◭' },
       { to: '/registry', label: '来源登记', ico: '⌗' },
     ],
   },

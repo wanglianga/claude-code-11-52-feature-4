@@ -29,3 +29,13 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         seed_if_empty(db)
+        # Existing databases created before the peak-demand product shipped need the
+        # demand catalog (contracts, meter roles, readings) added idempotently.
+        try:
+            from .seed import _ensure_demand_catalog
+
+            _ensure_demand_catalog(db)
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
